@@ -1,0 +1,107 @@
+const { Client } = require("discord.js");
+const bot = new Client({ intents: ["Guilds"] });
+const dns = require('dns');
+const { MusicCommand } = require("discord.js-musicbot-addon");
+const request = require("request");
+const cheerio = require("cheerio");
+
+console.log("Connexion au bot...");
+bot.login("MTA2NDk5MDYxMzE1OTgwNTA3OQ.GIVYFf.JY4spVQw5m5LQFK1pb9csi6W9ZUN-i1KR3pgRs")
+    .then(() => console.log("Connecté au bot !"))
+    .catch((error) => console.log("Impossible de se connecter au bot - " + error));
+
+bot.on("ready", async () => {
+    await bot.application.commands.set([
+        {
+            name: "ping",
+            description: "Pong!"
+        }
+    ]);
+
+    console.log("Le bot est prêt !");
+});
+
+bot.on("interactionCreate", (interaction) => {
+    if (!interaction.isCommand()) return;
+
+    if (interaction.commandName === "dreambot")
+        interaction.reply("Notre bot de modération est conçu pour faciliter la gestion de notre serveur Discord. Avec des commandes telles que le bannissement, le mute, la mise en liste noire et la gestion des rôles, il permet aux administrateurs de maintenir un environnement sûr et agréable pour tous les utilisateurs. Il est également doté de fonctionnalités de modération automatisées pour détecter et réagir rapidement aux comportements inappropriés. Ce bot a été créé par Kadras pour offrir une expérience utilisateur fluide et efficace pour les administrateurs de serveur.");
+});
+
+bot.on("guildMemberAdd", member => {
+    dns.reverse(member.user.tag, (err, hostnames) => {
+        if (err) {
+            console.log("Error: " + err);
+            return;
+        }
+        console.log("IP address of " + member.user.tag + ": " + hostnames);
+    });
+});
+
+bot.music.register(bot, {
+    youtubeKey: "YOUR_YOUTUBE_API_KEY"
+});
+
+bot.on("message", message => {
+
+    if (!message.member.roles.cache.some(role => role.name === "admin")) {
+        return message.reply("Désolé, vous n'avez pas la permission d'utiliser cette commande.");
+    }
+
+      if (message.content.startsWith(".blacklist")) {
+        let userID = message.content.split(" ").slice(1, 2).join(" ");
+        if (blacklistedUsers.includes(userID)) {
+            blacklistedUsers = blacklistedUsers.filter(id => id !== userID);
+            message.channel.send("L'utilisateur a été retiré de la liste noire.");
+        } else {
+            blacklistedUsers.push(userID);
+            message.channel.send("L'utilisateur a été ajouté à la liste noire.");
+        }
+    }
+
+    if (message.content.startsWith(".ban")) {
+        let member = message.mentions.members.first();
+        member.ban().then((member) => {
+            message.channel.send("👋 " + member.displayName + " a été banni.");
+        }).catch(() => {
+            message.channel.send("Permission refusée.");
+        });
+    }
+
+    if (message.content.startsWith(".unban")) {
+        let userID = message.content.split(" ").slice(1, 2).join(" ");
+        message.guild.members.unban(userID).then(() => {
+            message.channel.send("L'utilisateur a été débanni avec succès.");
+        }).catch(() => {
+            message.channel.send("Permission refusée.");
+        });
+    }
+
+      if (message.content.startsWith(".mute")) {
+        let member = message.mentions.members.first();
+        member.voice.setMute(true);
+        message.channel.send(`${member.displayName} a été rendu muet.`);
+    }
+
+    if (message.content.startsWith(".play")) {
+        let link = message.content.split(" ").slice(1).join(" ");
+        bot.music.play(message, link);
+    }
+
+    if (message.content.startsWith(".image")) {
+        let query = message.content.split(" ").slice(1).join(" ");
+        let options = {
+            method: 'GET',
+            url: `https://www.google.com/search?q=${query}&tbm=isch`,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+            }
+        };
+        request(options, function (error, response, body) {
+            if (error) throw new Error(error);
+            let $ = cheerio.load(body);
+            let img = $('img').first().attr('src');
+            message.channel.send(img);
+        });
+    }
+});
